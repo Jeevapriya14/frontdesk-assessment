@@ -1,4 +1,4 @@
-"backend/.env" 
-"frontend/.env" 
-"backend/data/" 
+"backend\.env" 
+"frontend\.env" 
+"backend\data/" 
 .env
