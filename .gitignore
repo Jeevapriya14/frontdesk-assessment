@@ -1,7 +1,5 @@
-"backend\.env" 
-"frontend\.env" 
-"backend\data/" 
-.env".env" 
+
 .env
 backend/.env
 frontend/.env
+backend/secrets/
