@@ -1,45 +1,86 @@
 import React, { useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import axios from 'axios';
-import CallerListener from './pages/CallerListener';
-import AdminPanel from './pages/AdminPanel'; // keep this if you have AdminPanel.jsx
+import MainLayout from './layout/MainLayout.jsx';
+import Dashboard from './pages/DashBoard.jsx';
+import RequestsPage from './pages/Requests.jsx';
+import Learned from './pages/Learned.jsx';
+import CallerListener from './pages/CallerListener.jsx';
+import AdminPanel from './pages/AdminPanel.jsx';
+
+import Login from './pages/Login.jsx';
+import PrivateRoute from './components/PrivateRoute.jsx';
+
+import { auth } from './firebaseConfig';
+import { onAuthStateChanged } from 'firebase/auth';
 
 export default function App() {
   const [status, setStatus] = useState('loading');
 
   useEffect(() => {
+    let mounted = true;
     axios.get('http://localhost:4000/health')
-      .then(r => setStatus(`Backend: ${r.data.status} at ${new Date(r.data.time).toLocaleTimeString()}`))
-      .catch(e => setStatus('Backend unreachable: ' + (e.message || e)));
+      .then(r => {
+        if (!mounted) return;
+        const time = r.data?.time ? new Date(r.data.time).toLocaleTimeString() : new Date().toLocaleTimeString();
+        setStatus(`Backend: ${r.data?.status || 'ok'} @ ${time}`);
+      })
+      .catch(e => {
+        if (!mounted) return;
+        setStatus('Backend unreachable: ' + (e.message || e));
+      });
+    return () => { mounted = false; };
   }, []);
+
+  // Root redirect helper component defined inline for simplicity
+  function RequireRootRedirect() {
+    const [user, setUser] = useState(undefined);
+
+    useEffect(() => {
+      const unsub = onAuthStateChanged(auth, (u) => {
+        setUser(u || null);
+      });
+      return unsub;
+    }, []);
+
+    if (user === undefined) {
+      // still checking auth state
+      return <div />; // tiny loading placeholder
+    }
+    return user ? <Navigate to="/admin" replace /> : <Navigate to="/login" replace />;
+  }
 
   return (
     <BrowserRouter>
-      <div style={{ padding: 20, fontFamily: 'sans-serif' }}>
-        <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h1 style={{ margin: 0 }}>Frontdesk Demo</h1>
-          <nav>
-            <Link style={{ marginRight: 12 }} to="/">Home</Link>
-            <Link style={{ marginRight: 12 }} to="/admin">Supervisor</Link>
-            <span style={{ color: '#666' }}>{status}</span>
-          </nav>
-        </header>
+      <MainLayout>
+        <Routes>
+          <Route path="/login" element={<Login />} />
 
-        <main style={{ marginTop: 24 }}>
-          <Routes>
-            <Route path="/" element={
-              <div>
-                <h2>Quick links</h2>
-                <p>To open a caller page paste a request id into this URL:</p>
-                <pre style={{ background: '#111', color: '#fff', padding: 8 }}>http://localhost:5173/caller?id=&lt;REQUEST_ID&gt;</pre>
-                <p>Supervisor UI: <Link to="/admin">Open Supervisor</Link></p>
-              </div>
-            } />
-            <Route path="/caller" element={<CallerListener />} />
-            <Route path="/admin" element={<AdminPanel />} />
-          </Routes>
-        </main>
-      </div>
+          {/* Admin is protected */}
+          <Route
+            path="/admin/*"
+            element={
+              <PrivateRoute>
+                <AdminPanel />
+              </PrivateRoute>
+            }
+          />
+
+          {/* caller, learned, requests, dashboard (kept for direct access) */}
+          <Route path="/caller" element={<CallerListener />} />
+          <Route path="/learned" element={<Learned />} />
+          <Route path="/requests" element={<RequestsPage />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+
+          {/* root redirect */}
+          <Route path="/" element={<RequireRootRedirect />} />
+        </Routes>
+
+        {/* Floating status bar */}
+        <div className="fixed bottom-4 right-4 bg-white/90 border rounded px-3 py-2 text-sm shadow">
+          {status}
+        </div>
+      </MainLayout>
     </BrowserRouter>
   );
 }

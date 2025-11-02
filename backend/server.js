@@ -1,8 +1,9 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const { db, admin } = require('./src/firebase');
+const { db, admin } = require('./src/firebase'); // adjust if your firebase init exports different names
 const { v4: uuidv4 } = require('uuid');
+const path = require('path');
 
 const app = express();
 app.use(cors());
@@ -23,7 +24,7 @@ try {
   const tts = require('@google-cloud/text-to-speech');
   TextToSpeechClient = tts.TextToSpeechClient;
 } catch (e) {
-  // google tts optional - createTtsAudio will throw if not available
+  // google tts optional
 }
 
 app.get('/health', (req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
@@ -82,7 +83,6 @@ app.get('/api/requests', async (req, res) => {
 /**
  * Resolve a request (update status to RESOLVED).
  * This endpoint is used when supervisor answers a request.
- * Later we can extend it to generate TTS audio and inject/play into LiveKit room.
  */
 app.put('/api/requests/:id/resolve', async (req, res) => {
   const id = req.params.id;
@@ -116,18 +116,12 @@ app.put('/api/requests/:id/resolve', async (req, res) => {
 });
 
 /**
- * Resolve and speak (skeleton)
- * - Updates Firestore
- * - Generates TTS audio buffer (if configured)
- * - (Not included) You must decide on how to publish this audio into LiveKit.
- *
- * Two options for audio playback:
- *  A) Server-side: create a headless participant (bot) that connects via WebRTC and publishes the audio track.
- *  B) Client-side: use the caller's browser to play the audio (easier) — send a Firestore update or message and let the client play local TTS.
- *
- * This endpoint implements the update + TTS generation (if Google TTS available)
- * and returns either an audio URL (if you upload it) or a base64 audio payload.
+ * Resolve-and-speak (existing skeleton) - unchanged
  */
+app.put('/api/Requests/:id/resolve-and-speak', (req, res) => {
+  res.status(501).json({ error: 'use /api/requests/:id/resolve-and-speak (lowercase path) or configure TTS' });
+});
+
 app.put('/api/requests/:id/resolve-and-speak', async (req, res) => {
   const id = req.params.id;
   const { answer_text, answered_by, livekit_room } = req.body;
@@ -147,7 +141,6 @@ app.put('/api/requests/:id/resolve-and-speak', async (req, res) => {
       answer_text: answer_text.trim(),
       answered_by: answered_by || 'supervisor',
       answered_at: new Date().toISOString(),
-      // optionally store room info if provided
       livekit_room: livekit_room || null
     };
     await docRef.update(update);
@@ -158,8 +151,12 @@ app.put('/api/requests/:id/resolve-and-speak', async (req, res) => {
       if (!TextToSpeechClient) throw new Error('Google TTS library not installed or not configured');
       const audioBuffer = await createTtsAudio(answer_text);
       audio_base64 = audioBuffer.toString('base64');
-      // NOTE: you probably want to upload the buffer to storage (GCS/S3) and return a URL
-      // or pass buffer to a LiveKit publisher routine to play it into a room.
+
+      // store generated base64 on the doc (optional) - be cautious about large documents in Firestore
+      await docRef.update({
+        'tts.base64': audio_base64,
+        'tts.mime': 'audio/mpeg'
+      });
     } catch (ttsErr) {
       console.warn('TTS generation skipped/failed:', ttsErr && ttsErr.message ? ttsErr.message : ttsErr);
     }
@@ -167,11 +164,71 @@ app.put('/api/requests/:id/resolve-and-speak', async (req, res) => {
     res.json({
       message: 'resolved',
       request: update,
-      tts: audio_base64 ? { base64: audio_base64, mime: 'audio/mp3' } : null,
-      note: 'To play audio into LiveKit room you must implement a publisher that consumes this audio (see docs).'
+      tts: audio_base64 ? { base64: audio_base64, mime: 'audio/mpeg' } : null,
+      note: 'Server attempted to generate TTS (if configured).'
     });
   } catch (err) {
     console.error('resolve-and-speak error:', err && err.stack ? err.stack : err);
+    res.status(500).json({ error: err && err.message ? err.message : String(err) });
+  }
+});
+
+/**
+ * On-demand TTS endpoint:
+ * GET /api/requests/:id/tts
+ *
+ * If the Firestore doc already contains `tts.base64` or `tts_url`, returns that directly.
+ * Otherwise, if Google TTS is available, synthesize and return audio stream (audio/mpeg).
+ */
+app.get('/api/requests/:id/tts', async (req, res) => {
+  const id = req.params.id;
+  try {
+    const docRef = db.collection('help_requests').doc(id);
+    const docSnap = await docRef.get();
+    if (!docSnap.exists) return res.status(404).json({ error: 'request not found' });
+    const data = docSnap.data();
+
+    // 1) If doc has tts_url, redirect or stream it
+    if (data.tts_url) {
+      // Option A: redirect to external URL
+      return res.redirect(302, data.tts_url);
+    }
+
+    // 2) If doc contains base64 audio, stream it
+    if (data.tts && data.tts.base64) {
+      const b64 = data.tts.base64;
+      const mime = data.tts.mime || 'audio/mpeg';
+      const buffer = Buffer.from(b64, 'base64');
+      res.set('Content-Type', mime);
+      res.set('Content-Length', buffer.length);
+      return res.send(buffer);
+    }
+
+    // 3) If server has Google TTS client, generate on-demand
+    if (!TextToSpeechClient) {
+      return res.status(501).json({ error: 'TTS not configured on server. Install @google-cloud/text-to-speech and set GOOGLE_APPLICATION_CREDENTIALS.' });
+    }
+
+    const docData = docSnap.data();
+    const answer_text = docData.answer_text || docData.question_text || '';
+    if (!answer_text) return res.status(400).json({ error: 'no text to synthesize' });
+
+    const buffer = await createTtsAudio(answer_text); // Buffer (mp3)
+    // Optionally store the base64 back into the doc (so next time we can reuse)
+    try {
+      await docRef.update({
+        'tts.base64': buffer.toString('base64'),
+        'tts.mime': 'audio/mpeg'
+      });
+    } catch (e) {
+      console.warn('failed to persist tts to doc', e);
+    }
+
+    res.set('Content-Type', 'audio/mpeg');
+    res.set('Content-Length', buffer.length);
+    return res.send(buffer);
+  } catch (err) {
+    console.error('tts on-demand error:', err && err.stack ? err.stack : err);
     res.status(500).json({ error: err && err.message ? err.message : String(err) });
   }
 });
@@ -197,7 +254,6 @@ app.post('/api/livekit/token', (req, res) => {
       const grant = new RoomServiceGrant({ roomJoin: true, room });
       at.addGrant(grant);
     }
-    // if RoomServiceGrant API differs on your SDK version, adapt accordingly.
     const token = at.toJwt();
     res.json({ token, url: livekitUrl });
   } catch (err) {
@@ -217,13 +273,12 @@ async function createTtsAudio(text, options = {}) {
 
   const request = {
     input: { text },
-    voice: { languageCode: 'en-US', ssmlGender: 'FEMALE' },
+    voice: { languageCode: options.lang || 'en-US', ssmlGender: 'FEMALE' },
     audioConfig: { audioEncoding: 'MP3' }
   };
 
   const [response] = await client.synthesizeSpeech(request);
-  // response.audioContent is a Buffer
-  return response.audioContent;
+  return response.audioContent; // Buffer
 }
 
 const PORT = process.env.PORT || 4000;
