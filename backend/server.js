@@ -27,7 +27,16 @@ try {
   // google tts optional
 }
 
-app.get('/health', (req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
+// add to your server.js
+app.get('/health', async (req, res) => {
+  try {
+    await db.doc('health/ping').get(); // quick Firestore / small op
+    res.status(200).json({status: 'ok'});
+  } catch (err) {
+    res.status(500).json({status: 'error'});
+  }
+});
+
 
 /**
  * Create a request (existing)
