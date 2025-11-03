@@ -1,0 +1,20 @@
+{
+  "name": "frontdesk-monorepo",
+  "private": true,
+  "workspaces": [
+    "frontend"
+  ],
+  "version": "0.0.0",
+  "scripts": {
+    "build": "echo \"root build (noop)\"",
+    "start": "node ./api/_health.js"
+  },
+  "dependencies": {
+    "firebase-admin": "^11.10.0",
+    "uuid": "^9.0.0",
+    "@google-cloud/text-to-speech": "^4.1.0"
+  },
+  "engines": {
+    "node": "18.x"
+  }
+}
