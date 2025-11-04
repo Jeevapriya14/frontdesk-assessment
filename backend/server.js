@@ -1,12 +1,22 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const { db } = require('./src/firebase');
 const { db, admin } = require('./src/firebase'); // adjust if your firebase init exports different names
 const { v4: uuidv4 } = require('uuid');
 const path = require('path');
 
 const app = express();
-app.use(cors());
+const pino = require('pino')();
+pino.info('server started');
+app.use((req, res, next) => {
+  req.log = pino.child({ reqId: Date.now() });
+  next();
+});
+app.use(cors({
+  origin: ['https://ai-receiptionist-app.vercel.app'],
+  credentials: true
+}));
 app.use(express.json());
 
 // Optional imports for LiveKit / TTS helpers:
@@ -291,6 +301,4 @@ async function createTtsAudio(text, options = {}) {
 }
 
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, '0.0.0.0', () => {
-  console.log('Server listening on', PORT);
-});
+app.listen(PORT, () => pino.info(`Server running on port ${PORT}`));
