@@ -2,9 +2,7 @@
   "name": "frontend",
   "version": "0.0.0",
   "private": true,
-  "engines": {
-    "node": "18.x"
-  },
+  
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -25,5 +23,8 @@
     "autoprefixer": "^10.4.21",
     "vite": "^7.1.7",
     "eslint": "^9.36.0"
+  },
+  "engines": {
+    "node": "22.x"
   }
 }
