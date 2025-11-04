@@ -1,7 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const { db } = require('./src/firebase');
+
 const { db, admin } = require('./src/firebase'); // adjust if your firebase init exports different names
 const { v4: uuidv4 } = require('uuid');
 const path = require('path');
