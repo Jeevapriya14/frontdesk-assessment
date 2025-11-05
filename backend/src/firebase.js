@@ -14,8 +14,9 @@ if (process.env.FIREBASE_SERVICE_ACCOUNT) {
 }
 
 if (!serviceAccount) {
-  console.error('Firebase service account missing — check Render environment variables!');
-  throw new Error('Service account missing and emulator not configured.');
+  // Fallback to local JSON file for development
+  serviceAccount = require('../secrets/serviceAccountKey.json');
+  console.log('✅ Loaded local Firebase service account for development');
 }
 
 // Initialize Firebase Admin SDK
