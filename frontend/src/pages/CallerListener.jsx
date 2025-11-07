@@ -1,19 +1,19 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { doc, onSnapshot } from 'firebase/firestore';
-import { db } from '../firebaseConfig'; // adjust path if needed
+import { db } from '../firebaseConfig'; 
 
-// Helper: pick a reasonable TTS voice
+
 function choose_preferred_voice() {
   const voices = window.speechSynthesis.getVoices() || [];
   if (!voices.length) return null;
-  // Prefer India/English India, then any English, then first voice
+ 
   return voices.find(v => /India|en-IN|English India|Google UK English/ig.test(v.name)) ||
          voices.find(v => /en-|English/ig.test(v.lang || v.name)) ||
          voices[0];
 }
 
-// Use browser TTS
+
 function speakTextClient(text, opts = {}) {
   if (!text || !text.trim()) return;
   if (!('speechSynthesis' in window)) {
@@ -33,7 +33,7 @@ function speakTextClient(text, opts = {}) {
     if (voice) ut.voice = voice;
 
     try {
-      window.speechSynthesis.cancel(); // stop any previous
+      window.speechSynthesis.cancel(); 
       window.speechSynthesis.speak(ut);
     } catch (e) {
       console.error('speak error', e);
@@ -44,7 +44,7 @@ function speakTextClient(text, opts = {}) {
   if (voices && voices.length) {
     speakNow();
   } else {
-    // wait for voices to load
+    
     const onvoices = () => {
       try { speakNow(); } catch (e) { console.error(e); }
       window.speechSynthesis.onvoiceschanged = null;
@@ -56,7 +56,7 @@ function speakTextClient(text, opts = {}) {
   }
 }
 
-// Helper to convert base64->Blob
+
 function base64ToBlob(base64, mime = 'audio/mpeg') {
   const binary = atob(base64);
   const len = binary.length;
@@ -72,7 +72,7 @@ export default function CallerListener() {
   const seen = useRef(new Set());
   const [audioUnlocked, setAudioUnlocked] = useState(false);
   const [playing, setPlaying] = useState(false);
-  const audioRef = useRef(null); // HTMLAudioElement
+  const audioRef = useRef(null); 
 
   useEffect(() => {
     console.log('CallerListener mount, requestId=', requestId);
@@ -89,26 +89,26 @@ export default function CallerListener() {
       setRequest({ id: snap.id, ...data });
       console.log('CallerListener snapshot', snap.id, data.status);
 
-      // speak when resolved and there's an answer
+     
       if (data.status === 'RESOLVED' && data.answer_text) {
         const key = `${snap.id}::${data.answered_at || ''}`;
         if (!seen.current.has(key)) {
           seen.current.add(key);
           console.log('Will speak answer:', data.answer_text);
 
-          // Prefer server TTS if provided on the doc
+       
           const hasServerTtsBase64 = !!(data.tts && data.tts.base64);
           const hasServerTtsUrl = !!data.tts_url;
 
           if (audioUnlocked) {
-            // if server TTS available, play it (base64 or URL)
+          
             if (hasServerTtsBase64) {
               const blob = base64ToBlob(data.tts.base64, data.tts.mime || 'audio/mpeg');
               playBlobAudio(blob);
             } else if (hasServerTtsUrl) {
               playUrlAudio(data.tts_url);
             } else {
-              // no server audio -> use client speechSynthesis
+           
               setTimeout(() => speakTextClient(data.answer_text), 200);
             }
           } else {
@@ -125,13 +125,13 @@ export default function CallerListener() {
       unsub();
       stopPlaying();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [requestId, audioUnlocked]);
 
-  // user gesture to "unlock" audio autoplay policies in some browsers
+ 
   function unlockAudio() {
     try {
-      // small user-gesture utterance; browsers treat this as a user gesture
+    
       const u = new SpeechSynthesisUtterance('');
       window.speechSynthesis.speak(u);
     } catch (e) {
@@ -139,7 +139,7 @@ export default function CallerListener() {
     }
     setAudioUnlocked(true);
 
-    // pre-load voices list (help choose_preferred_voice)
+ 
     setTimeout(() => {
       const v = window.speechSynthesis.getVoices();
       if (!v.length) {
@@ -165,7 +165,7 @@ export default function CallerListener() {
     }
   }
 
-  // play a blob (server-provided base64 converted to blob or fetched)
+ 
   function playBlobAudio(blob) {
     stopPlaying();
     const url = URL.createObjectURL(blob);
@@ -204,7 +204,6 @@ export default function CallerListener() {
     }
   }
 
-  // Fetch TTS for this request from server endpoint, then play
   async function fetchAndPlayTts() {
     if (!request?.id) return alert('No request selected');
     if (!audioUnlocked) return alert('Please click "Enable audio" first');
@@ -216,7 +215,7 @@ export default function CallerListener() {
         console.warn('TTS endpoint responded:', res.status, body);
         return alert(body?.error || `TTS not available (status ${res.status})`);
       }
-      // stream audio response and play
+   
       const contentType = res.headers.get('content-type') || 'audio/mpeg';
       const arrayBuffer = await res.arrayBuffer();
       const blob = new Blob([arrayBuffer], { type: contentType });
@@ -227,10 +226,10 @@ export default function CallerListener() {
     }
   }
 
-  // allow manual play: prefer server tts on doc, else client TTS
+ 
   function handlePlayAnswer() {
     if (!request) return;
-    // if doc contains server-provided base64 or url, play that
+    
     if (request.tts && request.tts.base64) {
       const blob = base64ToBlob(request.tts.base64, request.tts.mime || 'audio/mpeg');
       playBlobAudio(blob);
@@ -240,11 +239,11 @@ export default function CallerListener() {
       playUrlAudio(request.tts_url);
       return;
     }
-    // fallback to client-side speech synthesis
+   
     speakTextClient(request.answer_text);
   }
 
-  // allow user to download server tts if present
+ 
   function handleDownload() {
     if (!request) return;
     if (request.tts && request.tts.base64) {
@@ -287,8 +286,8 @@ export default function CallerListener() {
           <button
             onClick={unlockAudio}
             style={{
-              background: '#f3f4f6', // light gray
-              color: '#000000',      // black text
+              background: '#f3f4f6', 
+              color: '#000000',     
               padding: '10px 18px',
               borderRadius: 8,
               border: '1px solid #e5e7eb',

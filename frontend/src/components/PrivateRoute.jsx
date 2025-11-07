@@ -14,7 +14,7 @@ export default function PrivateRoute({ children }) {
   }, []);
 
   if (user === undefined) {
-    // still loading auth
+    
     return <div className="p-6">Checking authentication...</div>;
   }
 

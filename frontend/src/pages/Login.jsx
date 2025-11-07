@@ -16,7 +16,7 @@ export default function Login() {
     setBusy(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      // on success redirect to admin
+    
       navigate('/admin', { replace: true });
     } catch (err) {
       console.error('Login error', err);

@@ -22,7 +22,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     loadCounts();
-    const id = setInterval(loadCounts, 8000); // refresh counts periodically
+    const id = setInterval(loadCounts, 8000); 
     return () => clearInterval(id);
   }, []);
 

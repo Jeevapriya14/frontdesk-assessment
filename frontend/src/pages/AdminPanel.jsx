@@ -1,4 +1,4 @@
-// frontend/src/pages/AdminPanel.jsx
+
 import React, { useEffect, useState } from 'react';
 import { db, auth } from '../firebaseConfig';
 import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
@@ -14,7 +14,7 @@ export default function AdminPanel() {
   const [answerText, setAnswerText] = useState('');
   const [sending, setSending] = useState(false);
 
-  // Auth listener + admin claim check
+ 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
       setUser(u);
@@ -33,7 +33,7 @@ export default function AdminPanel() {
     return () => unsub();
   }, []);
 
-  // Firestore real-time listener (only start if admin)
+ 
   useEffect(() => {
     if (!isAdmin) {
       setRequests([]);
@@ -67,7 +67,7 @@ export default function AdminPanel() {
         answered_by: 'supervisor',
       });
 
-      // Optimistically remove answered request from list
+     
       setRequests((prev) => prev.filter((r) => r.id !== selected.id));
       setSelected(null);
       setAnswerText('');
@@ -143,7 +143,7 @@ export default function AdminPanel() {
         ))}
       </div>
 
-      {/* Floating answer panel */}
+    
       {selected && (
         <div className="fixed right-6 bottom-16 w-96 bg-white/95 backdrop-blur border rounded-2xl shadow-lg p-4 z-50">
           <div className="flex items-start justify-between">

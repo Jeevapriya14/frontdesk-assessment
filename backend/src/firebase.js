@@ -1,30 +1,54 @@
-// backend/src/firebase.js
-const admin = require('firebase-admin');
+const fs = require("fs");
+const path = require("path");
+const admin = require("firebase-admin");
 
-// Try to load credentials from env (Render)
-let serviceAccount = null;
-
-if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+function loadServiceAccountFromEnv() {
+  const raw = process.env.FIREBASE_SERVICE_ACCOUNT;
+  if (!raw) return null;
   try {
-    // Parse JSON string stored in Render env var
-    serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+    return JSON.parse(raw);
   } catch (err) {
-    console.error('Failed to parse FIREBASE_SERVICE_ACCOUNT env var:', err);
+    console.warn("FIREBASE_SERVICE_ACCOUNT found but JSON.parse failed:", err.message);
+    return null;
+  }
+}
+
+function loadServiceAccountFromFile() {
+  const localPath = path.join(__dirname, "..", "secrets", "serviceAccountKey.json");
+  if (fs.existsSync(localPath)) {
+    try {
+      const raw = fs.readFileSync(localPath, "utf8");
+      return JSON.parse(raw);
+    } catch (err) {
+      console.warn("Failed to read/parse local serviceAccountKey.json:", err.message);
+      return null;
+    }
+  }
+  return null;
+}
+
+let serviceAccount = loadServiceAccountFromEnv();
+
+if (!serviceAccount) {
+  serviceAccount = loadServiceAccountFromFile();
+  if (serviceAccount) {
+    console.log(" Using local backend/secrets/serviceAccountKey.json for Firebase Admin (dev mode).");
   }
 }
 
 if (!serviceAccount) {
-  console.error('Firebase service account missing — check Render environment variables!');
-  throw new Error('Service account missing and emulator not configured.');
+  console.error(
+    "Firebase service account missing — set FIREBASE_SERVICE_ACCOUNT env var or place serviceAccountKey.json in backend/secrets/"
+  );
+  throw new Error("Service account missing and emulator not configured.");
 }
 
-// Initialize Firebase Admin SDK
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
 });
 
 const db = admin.firestore();
 
-console.log('✅ Firebase Admin initialized successfully');
+console.log(" Firebase Admin initialized successfully");
 
 module.exports = { admin, db };

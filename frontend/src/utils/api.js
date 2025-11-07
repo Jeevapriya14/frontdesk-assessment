@@ -1,3 +1,17 @@
+
 import axios from 'axios';
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
-export const api = axios.create({ baseURL: BASE_URL });
+
+
+const baseURL =
+  import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000';
+
+
+export const api = axios.create({
+  baseURL,
+  timeout: 15000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+export default api;

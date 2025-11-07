@@ -5,7 +5,7 @@ const fs = require('fs');
 const keyPath = path.join(__dirname, 'secrets', 'serviceAccountKey.json');
 
 if (!fs.existsSync(keyPath)) {
-  console.error('❌ Service account key missing:', keyPath);
+  console.error(' Service account key missing:', keyPath);
   process.exit(1);
 }
 
@@ -15,7 +15,7 @@ try {
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
   });
-  console.log('✅ Firebase initialized');
+  console.log(' Firebase initialized');
 } catch (e) {
   console.error('init error:', e);
 }
@@ -28,9 +28,9 @@ const db = admin.firestore();
       test: true,
       created_at: new Date().toISOString(),
     });
-    console.log('✅ Firestore write OK');
+    console.log(' Firestore write OK');
   } catch (err) {
-    console.error('🔥 Firestore write error:', err.message);
+    console.error('Firestore write error:', err.message);
     console.error(err);
   }
 })();
