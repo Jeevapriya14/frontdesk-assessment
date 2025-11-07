@@ -92,7 +92,7 @@ export default function RequestsPage() {
     }
   };
 
-  // called by RequestCard after its own resolve/archive flows
+  
   const handleCardResolved = async (id) => {
     await load();
   };
