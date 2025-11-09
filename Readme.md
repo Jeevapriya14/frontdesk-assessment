@@ -1,6 +1,5 @@
-# Frontdesk — AI Receptionist (Coding Assessment)
+#  AI Receptionist
 
-This project was developed as part of the **Frontdesk Company Coding Assessment**.  
 It implements a **voice-enabled receptionist** web app using React (Vite), Firebase, and a Node.js + Express backend with Firestore integration.  
 The solution is deployed with **Render (backend)** and **Vercel (frontend)**.
 
