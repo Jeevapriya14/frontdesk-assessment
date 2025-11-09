@@ -6,14 +6,7 @@ The solution is deployed with **Render (backend)** and **Vercel (frontend)**.
 
 ---
 
-##  Live Deployments
 
-| Service | Platform | URL |
-|----------|-----------|-----|
-| **Frontend** | Vercel | 🔗 [https://ai-receiptionist-app.vercel.app](https://ai-receiptionist-app.vercel.app) |
-| **Backend** | Render | 🔗 [https://frontdesk-assessment.onrender.com](https://frontdesk-assessment.onrender.com) |
-
----
 
 ##  Project Overview
 
